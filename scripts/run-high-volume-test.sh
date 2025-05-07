@@ -78,15 +78,15 @@ fi
 
 echo -e "${CYAN}Using Docker network:${NC} $DOCKER_NETWORK"
 
-# Get API service IP address
+# Get API service IP address dynamically
 API_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $API_CONTAINER)
 echo -e "${CYAN}API service IP address:${NC} $API_IP"
 
 # Run k6 load tests
 echo -e "\n${BOLD}${YELLOW}[4/4]${NC} Running high-volume k6 load tests..."
 
-# Modify the test script to use the correct API URL
-sed -i.bak "s|baseUrl = 'http://localhost:3000'|baseUrl = 'http://$API_IP:3000'|g" k6-tests/high-volume-test.js
+# Pass the API URL as an environment variable to k6
+echo -e "${CYAN}Setting API URL to: http://${API_IP}:3000${NC}"
 
 echo -e "${CYAN}Starting high-volume load test with k6...${NC}"
 echo -e "${YELLOW}This test will simulate extreme traffic with up to 10,000 concurrent users over 6 minutes.${NC}"
@@ -95,10 +95,8 @@ echo -e "${YELLOW}Press Ctrl+C to abort the test at any time.${NC}"
 docker run --rm -i \
   --network $DOCKER_NETWORK \
   -v "${PROJECT_ROOT}/k6-tests:/k6-tests" \
+  -e "API_URL=http://${API_IP}:3000" \
   grafana/k6 run /k6-tests/high-volume-test.js
-
-# Restore the original test script
-mv k6-tests/high-volume-test.js.bak k6-tests/high-volume-test.js
 
 echo -e "\n${GREEN}${BOLD}✓ High-volume load testing completed!${NC}"
 echo -e "${CYAN}Check the results above for performance metrics.${NC}"

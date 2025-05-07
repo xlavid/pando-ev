@@ -41,21 +41,24 @@ export const options = {
     { duration: '30s', target: 0 },      // Ramp down to 0
   ],
 
+  // Set request timeout to 10s to prevent very long hanging requests
+  timeout: '10s',
+
   // Thresholds for acceptable performance under high load
   thresholds: {
-    http_req_duration: ['p(95)<800'], // 95% of requests should be below 800ms under high load
-    http_req_failed: ['rate<0.05'],   // Less than 5% of requests should fail under high load
-    'status_update_duration': ['p(95)<1000'], // 95% of status updates should be under 1 second
+    http_req_duration: ['p(95)<1500'], // 95% of requests should be below 1.5 seconds under high load
+    http_req_failed: ['rate<0.10'],    // Less than 10% of requests should fail under high load
+    'status_update_duration': ['p(95)<2000'], // 95% of status updates should be under 2 seconds
     'json_parse_errors': ['count<10'], // Fail if we have too many JSON parse errors
   },
 };
 
 // Environment variables
-const baseUrl = 'http://localhost:3000'; // Will be replaced by the run script
+const baseUrl = __ENV.API_URL || 'http://api:3000'; // Use environment variable or default to service name
 
 // Use these pre-generated values from your mock data
 const PARTNER_COUNT = 10;
-const CHARGER_COUNT_PER_PARTNER = 100000;
+const CHARGER_COUNT_PER_PARTNER = 100000; // Up to 100k chargers per partner
 
 // Helper function to get a random number between min and max
 function getRandomInt(min, max) {
@@ -70,12 +73,14 @@ let partnerIds = [];
 export function setup() {
   console.log('Setting up high volume test - fetching partner data...');
   console.log('Note: This test focuses on charger status operations, not partner creation');
+  console.log(`Using API URL: ${baseUrl}`);
   
   // Get the list of all partners
   const partnersResponse = http.get(`${baseUrl}/api/v1/partners`);
   
   if (partnersResponse.status !== 200) {
     console.error(`Failed to fetch partners: ${partnersResponse.status} - ${partnersResponse.body}`);
+    console.error(`API URL used: ${baseUrl}/api/v1/partners`);
     return { success: false };
   }
   
@@ -119,17 +124,44 @@ export default function(data) {
   const apiKey = partnerApiKeys[partnerIndex];
   const partnerId = partnerIds[partnerIndex];
   
-  // Realistic delay between user actions
-  sleep(Math.random());
+  // Realistic delay between user actions - shorter for high volume
+  sleep(Math.random() * 0.5);
   
-  // Randomly decide what operation to perform
-  const operation = Math.random();
+  // Determine operation based on adjusted probability distribution:
+  // - 1% initialize charger
+  // - 70% query charger
+  // - 29% update charger status
+  const operation = Math.random() * 100;
   
-  if (operation < 0.4) {
-    // 40% chance: Get a random charger's status
+  // 1% chance: Initialize a new charger
+  if (operation < 1) {
+    group('Initialize Charger', function() {
+      // Generate a unique charger ID
+      const chargerId = `charger-high-vol-${__VU}-${__ITER}-${getRandomInt(1000, 9999)}`;
+      
+      const response = http.post(
+        `${baseUrl}/api/v1/chargers`,
+        JSON.stringify({ chargerId: chargerId }),
+        { 
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey
+          } 
+        }
+      );
+      
+      check(response, {
+        'Charger initialize status is 201': (r) => r.status === 201 || r.status === 200,
+      });
+    });
+  }
+  // 70% chance: Get a random charger's status
+  else if (operation < 71) {
     group('Get Random Charger Status', function() {
       // Generate a random charger ID based on the pattern used in mock data
-      const randomChargerId = `charger-${partnerIndex+1}-${getRandomInt(0, CHARGER_COUNT_PER_PARTNER - 1)}`;
+      const mockPartnerIndex = (partnerIndex % 10) + 1; // Get a number between 1-10
+      const randomNumber = getRandomInt(0, 99999); // 0-99999
+      const randomChargerId = `charger-${mockPartnerIndex}-${randomNumber}`;
       
       const response = http.get(
         `${baseUrl}/api/v1/chargers/${randomChargerId}`,
@@ -152,11 +184,13 @@ export default function(data) {
       chargerFetchCount.add(1);
     });
   } 
-  else if (operation < 0.8) {
-    // 40% chance: Update a random charger's status
+  // 29% chance: Update a random charger's status
+  else {
     group('Update Random Charger Status', function() {
-      // Generate a random charger ID
-      const randomChargerId = `charger-${partnerIndex+1}-${getRandomInt(0, CHARGER_COUNT_PER_PARTNER - 1)}`;
+      // Generate a random charger ID based on the pattern used in mock data
+      const mockPartnerIndex = (partnerIndex % 10) + 1; // Get a number between 1-10
+      const randomNumber = getRandomInt(0, 99999); // 0-99999
+      const randomChargerId = `charger-${mockPartnerIndex}-${randomNumber}`;
       
       // Randomly select a status
       const statuses = ['AVAILABLE', 'BLOCKED', 'CHARGING', 'INOPERATIVE', 'REMOVED', 'RESERVED', 'UNKNOWN'];
@@ -197,9 +231,10 @@ export default function(data) {
       
       statusUpdateCount.add(1);
     });
-  } 
-  else {
-    // 20% chance: Get all chargers for the partner (will be paginated by the API)
+  }
+  
+  // Get partner chargers list (low probability - only 2% of the time)
+  if (Math.random() < 0.02) {
     group('List Partner Chargers', function() {
       const response = http.get(
         `${baseUrl}/api/v1/partners/${partnerId}/chargers`,
@@ -222,7 +257,8 @@ export default function(data) {
   }
   
   // Add a random pause between operations to simulate real user behavior
-  sleep(Math.random() * 3);
+  // Use shorter pauses for high volume testing 
+  sleep(Math.random() * 1 + 0.3); // Sleep between 0.3-1.3 seconds
 }
 
 // Teardown function

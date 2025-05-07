@@ -31,6 +31,9 @@ if [ -z "$API_CONTAINER" ]; then
     # Wait for API to be ready
     echo -e "${YELLOW}Waiting for API to be ready... (20 seconds)${NC}"
     sleep 20
+    
+    # After starting, get the container ID again
+    API_CONTAINER=$(docker-compose ps -q api)
 else
     echo -e "${GREEN}API container is already running.${NC}"
 fi
@@ -48,15 +51,15 @@ fi
 
 echo -e "${CYAN}Using Docker network:${NC} $DOCKER_NETWORK"
 
-# Get API service IP address
+# Get API service IP address dynamically
 API_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $API_CONTAINER)
 echo -e "${CYAN}API service IP address:${NC} $API_IP"
 
 # Run k6 load tests
 echo -e "\n${BOLD}${YELLOW}[3/3]${NC} Running k6 load tests..."
 
-# Modify the test script to use the correct API URL
-sed -i.bak "s|baseUrl: 'http://localhost:3000'|baseUrl: 'http://$API_IP:3000'|g" k6-tests/charger-api-load-test.js
+# Pass the API URL as an environment variable to k6
+echo -e "${CYAN}Setting API URL to: http://${API_IP}:3000${NC}"
 
 echo -e "${CYAN}Starting load tests with k6...${NC}"
 echo -e "${YELLOW}This test will simulate increasing traffic up to 1000 concurrent users over approximately 2.5 minutes.${NC}"
@@ -64,10 +67,8 @@ echo -e "${YELLOW}Press Ctrl+C to abort the test at any time.${NC}"
 docker run --rm -i \
   --network $DOCKER_NETWORK \
   -v "${PROJECT_ROOT}/k6-tests:/k6-tests" \
+  -e "API_URL=http://${API_IP}:3000" \
   grafana/k6 run /k6-tests/charger-api-load-test.js
-
-# Restore the original test script
-mv k6-tests/charger-api-load-test.js.bak k6-tests/charger-api-load-test.js
 
 echo -e "\n${GREEN}${BOLD}✓ Load testing completed!${NC}"
 echo -e "${CYAN}Check the results above for performance metrics.${NC}" 
