@@ -27,7 +27,7 @@ The system is designed to handle 10 partners with 100K chargers each (1M total),
 
 ## Architecture Highlights
 
-![System Architecture](https://via.placeholder.com/800x600?text=EV+Charger+System+Architecture) 
+![AWS Architecture](./AWS_Arch.png) 
 
 - **REST API**: Express.js with TypeScript
 - **Database**: PostgreSQL with Prisma ORM
