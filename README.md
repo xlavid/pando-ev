@@ -2,6 +2,19 @@
 
 A high-performance REST API for managing EV chargers, built with Express, TypeScript, Prisma, and PostgreSQL, designed to handle high-volume concurrent requests from multiple partner integrations.
 
+## Project Summary
+
+This project implements a comprehensive REST API for ABC's EV charging solution that enables third-party partners to integrate with the system. The implementation addresses the following key requirements:
+
+1. **Remote Charger Control**: Partners can remotely switch chargers on/off by updating their status through the API
+2. **Real-time Status Monitoring**: Access to real-time charger status (AVAILABLE, BLOCKED, CHARGING, etc.) with timestamps and meter values
+3. **Scalability**: Architecture designed to support 10 partners with 100K chargers each (1M total) with status updates every second
+4. **Performance**: Optimized with caching, connection pooling, and query optimization to handle high-volume requests
+5. **Security**: API key-based authentication and partner-specific authorization
+6. **Documentation**: Complete API documentation with examples, client library, and AWS architecture design
+
+The system achieves these goals through a modern, containerized application architecture with optimized database access patterns and robust error handling.
+
 ## System Overview
 
 This system provides a robust API for third-party partners to integrate with ABC's EV charging solution, allowing partners to:
@@ -14,14 +27,12 @@ The system is designed to handle 10 partners with 100K chargers each (1M total),
 
 ## Architecture Highlights
 
-![System Architecture](https://via.placeholder.com/800x600?text=EV+Charger+System+Architecture) 
-
 - **REST API**: Express.js with TypeScript
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: API key-based authentication
-- **Caching**: In-memory cache for charger status with configurable TTL
+- **Caching**: In-memory cache for charger status with configurable TTL (5 seconds)
 - **Containerization**: Full Docker support for consistent deployment
-- **Monitoring**: Prometheus metrics and health check endpoints
+- **Performance**: Optimized for high-throughput with connection pooling and timeouts
 
 ## Scalability Features
 
@@ -41,9 +52,9 @@ Key optimizations include:
 ## API Endpoints
 
 ### Partner Management
-- `POST /api/v1/partners` - Create a new partner
-- `GET /api/v1/partners` - List all partners
-- `GET /api/v1/partners/:partnerId` - Get partner details
+- `POST /api/v1/partners` - Create a new partner (requires admin authentication)
+- `GET /api/v1/partners` - List all partners (requires admin authentication)
+- `GET /api/v1/partners/:partnerId` - Get partner details (requires admin authentication)
 
 ### Charger Management
 - `POST /api/v1/chargers` - Initialize a new charger
@@ -53,16 +64,37 @@ Key optimizations include:
 
 ## Authentication and Authorization
 
-All API requests (except partner creation) require an API key to be included in the `X-API-Key` header:
+### Partner Authentication
+All charger-related API requests require a partner API key to be included in the `X-API-Key` header:
 
 ```
 X-API-Key: your-api-key
 ```
 
-Authorization ensures that:
+Partner authorization ensures that:
 - Each partner can only access and modify their own chargers
 - Appropriate error responses (403) are returned for unauthorized access attempts
 - All API keys are validated on each request
+
+### Admin Authentication
+All partner management endpoints require an admin API key to be included in the `X-Admin-API-Key` header:
+
+```
+X-Admin-API-Key: your-admin-api-key
+```
+
+The admin API key should be set as an environment variable in the `.env` file:
+```
+ADMIN_API_KEY=your_secure_admin_api_key
+```
+
+**Security Note:** 
+- Never hardcode the admin API key in your application or scripts
+- Keep your `.env` file out of version control (it's included in `.gitignore`)
+- For production, use secure environment variable management systems (such as AWS Secrets Manager, Kubernetes Secrets, etc.)
+- Regularly rotate your admin API key following security best practices
+
+This means that creating, listing, and retrieving partner details all require admin authentication, ensuring that partner management functions are restricted to authorized administrators only.
 
 ## Error Handling and Logging
 
@@ -70,13 +102,13 @@ The system includes comprehensive error handling:
 - Structured error responses with appropriate HTTP status codes
 - Detailed logging with request IDs for traceability
 - Timeout handling with 503 responses and retry suggestions
-- JSON validation errors with specific feedback
+- Request validation with Zod schema
 
 ## Performance Considerations
 
-- **Database Connection Pooling**: Optimized Prisma client with connection pooling (up to 50 connections) and retry logic
+- **Database Connection Pooling**: Optimized Prisma client with connection pooling (up to 50 connections)
 - **Caching**: In-memory cache for charger status with 5-second TTL
-- **Query Optimization**: Selective field retrieval and optimized queries
+- **Query Optimization**: Selective field retrieval and optimized database queries
 - **Timeout Handling**: All database operations have configurable timeouts with graceful fallbacks
 - **PostgreSQL Tuning**: Optimized settings for high-throughput scenarios
 
@@ -84,6 +116,7 @@ The system includes comprehensive error handling:
 
 - **API Key Authentication**: All endpoints require valid API keys
 - **Authorization**: Partners can only access their own chargers
+- **Admin Authentication**: Separate admin API key for partner management
 - **Input Validation**: Comprehensive validation using Zod schema
 - **Security Headers**: Helmet middleware for HTTP security headers
 - **Error Handling**: Structured error responses without exposing internals
@@ -112,14 +145,77 @@ docker-compose up -d
 ./scripts/run-load-tests.sh
 ```
 
+## Environment Setup
+
+The EV Charger System requires certain environment variables to be configured properly. The most important one is the `ADMIN_API_KEY` which is needed for partner management operations.
+
+### Setting Up Environment Variables
+
+1. **Create a .env file**:
+   ```bash
+   # Create a .env file in the project root
+   touch .env
+   ```
+
+2. **Add required variables to the .env file**:
+   ```
+   # Database connection string (for local development)
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ev_charger_system?schema=public"
+   
+   # Admin API key - use a strong random value for production environments
+   ADMIN_API_KEY="your_secure_generated_key"
+   ```
+
+3. **For Docker**:
+   The `docker-compose.yml` file is configured to use environment variables from your host machine or .env file. Make sure the `ADMIN_API_KEY` is set before running `docker-compose up`.
+
+4. **Generate a secure API key**:
+   You can generate a secure random key using:
+   ```bash
+   # Using OpenSSL (recommended for production)
+   openssl rand -hex 16
+   
+   # Or using Node.js
+   node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
+   ```
+
+### Environment Variables Reference
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | Yes | - |
+| `ADMIN_API_KEY` | Secret key for admin API endpoints | Yes | - |
+| `NODE_ENV` | Environment (development/production) | No | development |
+| `LOG_LEVEL` | Logging verbosity | No | info |
+| `DATABASE_CONNECTION_LIMIT` | Max DB connections | No | 50 |
+| `DATABASE_CONNECTION_TIMEOUT` | DB timeout (seconds) | No | 30 |
+
+### Security Notes
+
+- Never commit your `.env` file to version control
+- Use different API keys for development and production
+- In production environments, consider using a secrets management service
+- Rotate your admin API key regularly
+- In Kubernetes environments, use Kubernetes Secrets
+
 ## API Examples
 
-### Create Partner
+### Create Partner (Admin Only)
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/partners \
   -H "Content-Type: application/json" \
+  -H "X-Admin-API-Key: $ADMIN_API_KEY" \
   -d '{"name": "Partner Company Name"}'
+```
+
+Response:
+```json
+{
+  "id": "12345-uuid",
+  "name": "Partner Company Name",
+  "apiKey": "generated-api-key"
+}
 ```
 
 ### Initialize Charger
@@ -131,6 +227,21 @@ curl -X POST http://localhost:3000/api/v1/chargers \
   -d '{"chargerId": "charger-001"}'
 ```
 
+Response:
+```json
+{
+  "id": "charger-001",
+  "status": "AVAILABLE",
+  "meterValue": 0,
+  "lastUpdate": "2023-05-15T10:30:00Z",
+  "partnerId": "12345-uuid",
+  "partner": {
+    "id": "12345-uuid",
+    "name": "Partner Company Name"
+  }
+}
+```
+
 ### Update Charger Status
 
 ```bash
@@ -138,6 +249,21 @@ curl -X PUT http://localhost:3000/api/v1/chargers/charger-001/status \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-api-key" \
   -d '{"status": "CHARGING", "meterValue": 10.5}'
+```
+
+Response:
+```json
+{
+  "id": "charger-001",
+  "status": "CHARGING",
+  "meterValue": 10.5,
+  "lastUpdate": "2023-05-15T10:35:00Z",
+  "partnerId": "12345-uuid",
+  "partner": {
+    "id": "12345-uuid",
+    "name": "Partner Company Name"
+  }
+}
 ```
 
 Possible status values:
@@ -156,28 +282,65 @@ curl -X GET http://localhost:3000/api/v1/chargers/charger-001 \
   -H "X-API-Key: your-api-key"
 ```
 
-## AWS Architecture Considerations
+Response:
+```json
+{
+  "id": "charger-001",
+  "status": "CHARGING",
+  "meterValue": 10.5,
+  "lastUpdate": "2023-05-15T10:35:00Z",
+  "partnerId": "12345-uuid",
+  "partner": {
+    "id": "12345-uuid",
+    "name": "Partner Company Name"
+  }
+}
+```
 
-For production deployment on AWS, the following architecture would be recommended:
+### List All Partners (Admin Only)
 
-1. **API Gateway**: Front all API requests with API Gateway for rate limiting, caching, and authorization
+```bash
+curl -X GET http://localhost:3000/api/v1/partners \
+  -H "X-Admin-API-Key: $ADMIN_API_KEY"
+```
+
+Response:
+```json
+[
+  {
+    "id": "12345-uuid",
+    "name": "Partner Company Name",
+    "apiKey": "partner-api-key-1",
+    "createdAt": "2023-05-15T10:30:00Z",
+    "updatedAt": "2023-05-15T10:30:00Z"
+  },
+  {
+    "id": "67890-uuid",
+    "name": "Another Partner",
+    "apiKey": "partner-api-key-2",
+    "createdAt": "2023-05-15T11:20:00Z",
+    "updatedAt": "2023-05-15T11:20:00Z"
+  }
+]
+```
+
+## AWS Architecture Design
+
+For production deployment, this system can be deployed on AWS with the following components:
+
+1. **API Gateway**: Front all API requests with rate limiting, caching, and authorization
 2. **Elastic Load Balancer**: Distribute traffic across multiple API instances
 3. **ECS/EKS**: Run containerized API services with auto-scaling capabilities
 4. **RDS PostgreSQL**: Managed database service with read replicas for scaling reads
 5. **ElastiCache Redis**: Distributed caching for charger status
 6. **CloudWatch**: Monitoring and alerting
 7. **X-Ray**: Distributed tracing for performance analysis
-8. **S3**: Store logs and analytics data
-9. **Lambda**: Serverless functions for auxiliary processing
 
-## Future Improvements
+See the [AWS Architecture documentation](AWS_ARCHITECTURE.md) for detailed deployment guidance.
 
-- Distributed caching with Redis
-- Enhanced metrics collection
-- Horizontal scaling with load balancing
-- Content Delivery Network (CDN) integration
-- GraphQL API for more flexible queries
-- WebSocket support for real-time updates
+## API Client Library
+
+For third-party partners looking to integrate with our system, we provide a TypeScript client library that handles authentication, error handling, and retry logic. See the [API Client Example](API_CLIENT_EXAMPLE.md) for details.
 
 ## License
 

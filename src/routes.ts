@@ -1,5 +1,5 @@
 import express from 'express';
-import { apiKeyAuth } from './middlewares/auth';
+import { apiKeyAuth, adminKeyAuth } from './middlewares/auth';
 import { ChargerController } from './controllers/chargerController';
 import { PartnerController } from './controllers/partnerController';
 import logger from './utils/logger';
@@ -13,12 +13,12 @@ const asyncHandler = (fn: Function) => (req: express.Request, res: express.Respo
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
-// Partner routes (no auth)
-router.post('/partners', asyncHandler(partnerController.createPartner.bind(partnerController)));
-router.get('/partners', asyncHandler(partnerController.listPartners.bind(partnerController)));
-router.get('/partners/:partnerId', asyncHandler(partnerController.getPartner.bind(partnerController)));
+// Protected partner routes (all require admin auth)
+router.post('/partners', adminKeyAuth, asyncHandler(partnerController.createPartner.bind(partnerController)));
+router.get('/partners', adminKeyAuth, asyncHandler(partnerController.listPartners.bind(partnerController)));
+router.get('/partners/:partnerId', adminKeyAuth, asyncHandler(partnerController.getPartner.bind(partnerController)));
 
-// Charger routes (require auth)
+// Charger routes (require partner auth)
 router.use('/chargers', apiKeyAuth);
 router.post('/chargers', asyncHandler(chargerController.initializeCharger.bind(chargerController)));
 router.get('/chargers/:chargerId', asyncHandler(chargerController.getStatus.bind(chargerController)));

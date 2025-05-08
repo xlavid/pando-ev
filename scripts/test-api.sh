@@ -12,6 +12,19 @@ NC='\033[0m' # No Color
 # Base URL
 API_URL="http://localhost:3000/api/v1"
 
+# Load environment variables from .env file if it exists
+if [ -f .env ]; then
+  echo -e "${YELLOW}Loading environment variables from .env file...${NC}"
+  export $(grep -v '^#' .env | xargs)
+fi
+
+# Check if ADMIN_API_KEY is set
+if [ -z "$ADMIN_API_KEY" ]; then
+  echo -e "${RED}❌ Error: ADMIN_API_KEY environment variable is not set${NC}"
+  echo -e "${YELLOW}Please set the ADMIN_API_KEY environment variable or add it to your .env file${NC}"
+  exit 1
+fi
+
 echo -e "${BOLD}${BLUE}╔═════════════════════════════════════════════════╗${NC}"
 echo -e "${BOLD}${BLUE}║        Testing EV Charger System API            ║${NC}"
 echo -e "${BOLD}${BLUE}╚═════════════════════════════════════════════════╝${NC}"
@@ -20,6 +33,7 @@ echo -e "${BOLD}${BLUE}╚══════════════════
 echo -e "\n${BOLD}${YELLOW}[1/12]${NC} Creating a partner..."
 PARTNER_RESPONSE=$(curl -s -X POST ${API_URL}/partners \
   -H "Content-Type: application/json" \
+  -H "X-Admin-API-Key: $ADMIN_API_KEY" \
   -d '{"name":"Test Partner"}')
 
 # Extract partner ID and API key

@@ -18,6 +18,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
+# Load environment variables from .env file if it exists
+if [ -f .env ]; then
+  echo -e "${YELLOW}Loading environment variables from .env file...${NC}"
+  export $(grep -v '^#' .env | xargs)
+fi
+
+# Check if ADMIN_API_KEY is set
+if [ -z "$ADMIN_API_KEY" ]; then
+  echo -e "${RED}Error: ADMIN_API_KEY environment variable is not set${NC}"
+  echo -e "${YELLOW}Please set the ADMIN_API_KEY environment variable or add it to your .env file${NC}"
+  exit 1
+fi
+
 # Check if the API is running
 echo -e "\n${BOLD}${YELLOW}[1/3]${NC} Checking if the API is running..."
 
@@ -68,6 +81,7 @@ docker run --rm -i \
   --network $DOCKER_NETWORK \
   -v "${PROJECT_ROOT}/k6-tests:/k6-tests" \
   -e "API_URL=http://${API_IP}:3000" \
+  -e "ADMIN_API_KEY=${ADMIN_API_KEY}" \
   grafana/k6 run /k6-tests/charger-api-load-test.js
 
 echo -e "\n${GREEN}${BOLD}✓ Load testing completed!${NC}"

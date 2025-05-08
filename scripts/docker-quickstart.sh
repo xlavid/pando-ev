@@ -16,6 +16,19 @@ cleanup_existing() {
   docker system prune -f
 }
 
+# Load environment variables from .env file if it exists
+if [ -f .env ]; then
+  echo "Loading environment variables from .env file..."
+  export $(grep -v '^#' .env | xargs)
+fi
+
+# Check if ADMIN_API_KEY is set
+if [ -z "$ADMIN_API_KEY" ]; then
+  echo "Error: ADMIN_API_KEY environment variable is not set"
+  echo "Please set the ADMIN_API_KEY environment variable or add it to your .env file"
+  exit 1
+fi
+
 # Build the Docker images
 echo -e "\n[1/4] Building Docker images..."
 cleanup_existing
@@ -122,68 +135,11 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-# Setup API variables
-API_HOST="localhost"
-API_PORT="3000"
-API_URL="http://${API_HOST}:${API_PORT}"
-API_V1_URL="${API_URL}/api/v1"
-
+# Run the test-api.sh script for comprehensive API testing
 echo -e "\n[4/4] Running API Tests..."
-echo "Testing against API at ${API_V1_URL}..."
-
-# Create a partner
-echo -e "\n1. Creating a partner..."
-PARTNER_RESPONSE=$(curl -s -X POST ${API_V1_URL}/partners \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Test Partner"}')
-
-# Echo the partner response
-echo "Partner response: ${PARTNER_RESPONSE}"
-
-# Extract partner ID and API key
-PARTNER_ID=$(echo $PARTNER_RESPONSE | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
-API_KEY=$(echo $PARTNER_RESPONSE | grep -o '"apiKey":"[^"]*"' | cut -d'"' -f4)
-
-if [ -z "$API_KEY" ]; then
-  echo "Error: Could not extract API key. The API might not be ready."
-  echo "Check the container logs with: docker-compose logs api"
-  exit 1
-fi
-
-echo "Partner created with ID: $PARTNER_ID and API key: $API_KEY"
-
-# Initialize a charger
-echo -e "\n2. Initializing a charger..."
-CHARGER_ID="charger-test-002"
-CHARGER_RESPONSE=$(curl -s -X POST ${API_V1_URL}/chargers \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $API_KEY" \
-  -d "{\"chargerId\":\"$CHARGER_ID\"}")
-
-echo "Charger response: ${CHARGER_RESPONSE}"
-
-# Get charger status
-echo -e "\n3. Getting charger status..."
-STATUS_RESPONSE=$(curl -s -X GET ${API_V1_URL}/chargers/$CHARGER_ID \
-  -H "X-API-Key: $API_KEY")
-
-echo "Status response: ${STATUS_RESPONSE}"
-
-# Update charger status
-echo -e "\n4. Updating charger status to CHARGING..."
-UPDATE_RESPONSE=$(curl -s -X PUT ${API_V1_URL}/chargers/$CHARGER_ID/status \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $API_KEY" \
-  -d '{"status":"CHARGING","meterValue":5.5}')
-
-echo "Update response: ${UPDATE_RESPONSE}"
-
-# Get all partner's chargers
-echo -e "\n5. Getting all partner's chargers..."
-CHARGERS_RESPONSE=$(curl -s -X GET ${API_V1_URL}/partners/$PARTNER_ID/chargers \
-  -H "X-API-Key: $API_KEY")
-
-echo "Chargers response: ${CHARGERS_RESPONSE}"
+# Ensure admin API key is already set in the environment from .env
+chmod +x ./scripts/test-api.sh
+./scripts/test-api.sh
 
 echo -e "\n===== Docker Quickstart Complete ====="
 echo "- All services are running in Docker containers"

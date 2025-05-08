@@ -38,7 +38,7 @@ export const options = {
     { duration: '10s', target: 250 },   // Quick ramp up to 250 users
     { duration: '20s', target: 500 },   // Ramp up to 500 users over 20 seconds
     { duration: '30s', target: 1000 },  // Ramp up to 1000 users over 30 seconds
-    { duration: '1m', target: 1000 },   // Stay at 1000 users for 1 minute only
+    { duration: '15s', target: 1000 },   // Stay at 1000 users for 1 minute only
     { duration: '15s', target: 0 },     // Quick ramp down to 0 users
   ],
 
@@ -57,6 +57,7 @@ export const options = {
 // Shared state across VUs
 const sharedData = {
   baseUrl: __ENV.API_URL || 'http://api:3000', // Will be overridden by the script
+  adminApiKey: __ENV.ADMIN_API_KEY || '', // Admin API key for partner-related operations
   apiKeys: [],  // Will store API keys for created partners
   chargerIds: [], // Will store created charger IDs
   partnerChargerMap: {} // Maps partner IDs to their charger IDs
@@ -67,26 +68,59 @@ export function setup() {
   console.log('Setting up load test - fetching existing partners...');
   console.log(`Using API URL: ${sharedData.baseUrl}`);
   
-  // Get the list of all partners instead of creating a new one
-  const partnersResponse = http.get(`${sharedData.baseUrl}/api/v1/partners`);
+  if (!sharedData.adminApiKey) {
+    console.error('ADMIN_API_KEY is not set. Please provide it as an environment variable.');
+    return { success: false };
+  }
+  
+  // Get the list of all partners with admin API key
+  const partnersResponse = http.get(
+    `${sharedData.baseUrl}/api/v1/partners`,
+    { headers: { 'X-Admin-API-Key': sharedData.adminApiKey } }
+  );
   
   if (partnersResponse.status !== 200) {
     console.error(`Failed to fetch partners: ${partnersResponse.status} - ${partnersResponse.body}`);
     console.error(`API URL used: ${sharedData.baseUrl}/api/v1/partners`);
-    return {};
+    return { success: false };
   }
   
   const parsedBody = safeParseJson(partnersResponse.body);
   if (parsedBody.error) {
     console.error("Failed to parse partners response");
-    return {};
+    return { success: false };
   }
   
   const partners = parsedBody.value;
   
   if (partners.length < 1) {
-    console.error('No existing partners found. Please create at least one partner before running the test.');
-    return { success: false };
+    console.log('No existing partners found. Creating a test partner...');
+    
+    // Create a test partner
+    const createPartnerResponse = http.post(
+      `${sharedData.baseUrl}/api/v1/partners`,
+      JSON.stringify({ name: 'Load Test Partner' }),
+      { 
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-API-Key': sharedData.adminApiKey
+        } 
+      }
+    );
+    
+    if (createPartnerResponse.status !== 201) {
+      console.error(`Failed to create test partner: ${createPartnerResponse.status} - ${createPartnerResponse.body}`);
+      return { success: false };
+    }
+    
+    const parsedPartnerResponse = safeParseJson(createPartnerResponse.body);
+    if (parsedPartnerResponse.error) {
+      console.error("Failed to parse create partner response");
+      return { success: false };
+    }
+    
+    // Add the newly created partner
+    partners.push(parsedPartnerResponse.value);
   }
   
   // Store all partner API keys and IDs

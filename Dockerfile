@@ -1,12 +1,12 @@
-FROM node:lts-slim AS builder
+FROM node:lts AS builder
 
 WORKDIR /app
 
 # Install OpenSSL for Prisma
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends openssl && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && \
+#     apt-get install -y --no-install-recommends openssl && \
+#     apt-get clean && \
+#     rm -rf /var/lib/apt/lists/*
 
 # Copy package.json and package-lock.json
 COPY package*.json ./
@@ -28,15 +28,15 @@ RUN npx prisma generate
 RUN npm run build
 
 # Production stage
-FROM node:lts-slim AS production
+FROM node:lts AS production
 
 WORKDIR /app
 
 # Install curl for health checks and OpenSSL for Prisma
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl openssl && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && \
+#     apt-get install -y --no-install-recommends curl openssl && \
+#     apt-get clean && \
+#     rm -rf /var/lib/apt/lists/*
 
 # Copy package.json and package-lock.json
 COPY package*.json ./

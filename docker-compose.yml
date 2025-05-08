@@ -13,6 +13,7 @@ services:
       - LOG_LEVEL=debug
       - DATABASE_CONNECTION_LIMIT=50
       - DATABASE_CONNECTION_TIMEOUT=30
+      - ADMIN_API_KEY=${ADMIN_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -22,10 +23,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '4'
+          cpus: '8'
           memory: '4G'
         reservations:
-          cpus: '2'
+          cpus: '4'
           memory: '2G'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
@@ -65,10 +66,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '4'
+          cpus: '8'
           memory: '4G'
         reservations:
-          cpus: '2'
+          cpus: '4'
           memory: '2G'
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
