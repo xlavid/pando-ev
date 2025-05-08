@@ -7,44 +7,42 @@ exports.ChargerService = void 0;
 const charger_1 = require("../models/charger");
 const prisma_1 = __importDefault(require("../lib/prisma"));
 class ChargerService {
-    // Update charger status
+    // Update charger status - optimized to use single query
     async updateChargerStatus(chargerId, status, meterValue) {
-        const charger = await prisma_1.default.charger.findUnique({
-            where: { id: chargerId },
-            select: { id: true } // Minimal fields for validation
-        });
-        if (!charger) {
-            throw new Error('Charger not found');
-        }
-        return prisma_1.default.charger.update({
-            where: { id: chargerId },
-            data: {
-                status: status,
-                meterValue: meterValue,
-                lastUpdate: new Date()
-            },
-            // Only return necessary fields
-            select: {
-                id: true,
-                status: true,
-                meterValue: true,
-                lastUpdate: true,
-                createdAt: true,
-                updatedAt: true,
-                partnerId: true,
-                partner: {
-                    select: {
-                        id: true,
-                        name: true,
-                        apiKey: true,
-                        createdAt: true,
-                        updatedAt: true
+        try {
+            // Single query update with proper field selection
+            const updatedCharger = await prisma_1.default.charger.update({
+                where: { id: chargerId },
+                data: {
+                    status: status,
+                    meterValue: meterValue,
+                    lastUpdate: new Date()
+                },
+                select: {
+                    id: true,
+                    status: true,
+                    meterValue: true,
+                    lastUpdate: true,
+                    partnerId: true,
+                    partner: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
                     }
                 }
+            });
+            return updatedCharger;
+        }
+        catch (error) {
+            // Handle specific Prisma error for not found
+            if (error.code === 'P2025') {
+                throw new Error('Charger not found');
             }
-        });
+            throw error;
+        }
     }
-    // Get charger status
+    // Get charger status - optimized with field selection
     async getChargerStatus(chargerId) {
         const charger = await prisma_1.default.charger.findUnique({
             where: { id: chargerId },
@@ -53,16 +51,11 @@ class ChargerService {
                 status: true,
                 meterValue: true,
                 lastUpdate: true,
-                createdAt: true,
-                updatedAt: true,
                 partnerId: true,
                 partner: {
                     select: {
                         id: true,
-                        name: true,
-                        apiKey: true,
-                        createdAt: true,
-                        updatedAt: true
+                        name: true
                     }
                 }
             }
@@ -72,23 +65,74 @@ class ChargerService {
         }
         return charger;
     }
-    // Initialize a new charger
+    // Initialize a new charger - optimized to reduce queries
     async initializeCharger(chargerId, partnerId) {
-        const partner = await prisma_1.default.partner.findUnique({
-            where: { id: partnerId },
-            select: { id: true } // Minimal fields for validation
-        });
-        if (!partner) {
-            throw new Error('Partner not found');
+        try {
+            return await prisma_1.default.charger.create({
+                data: {
+                    id: chargerId,
+                    status: charger_1.ChargerStatus.AVAILABLE,
+                    meterValue: 0,
+                    lastUpdate: new Date(),
+                    partner: {
+                        connect: { id: partnerId }
+                    }
+                },
+                select: {
+                    id: true,
+                    status: true,
+                    meterValue: true,
+                    lastUpdate: true,
+                    partnerId: true,
+                    partner: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    }
+                }
+            });
         }
-        return prisma_1.default.charger.create({
-            data: {
-                id: chargerId,
-                status: charger_1.ChargerStatus.AVAILABLE,
-                meterValue: 0,
-                lastUpdate: new Date(),
+        catch (error) {
+            // Check for specific Prisma error codes
+            if (error.code === 'P2025') {
+                throw new Error('Partner not found');
+            }
+            throw error;
+        }
+    }
+    // Get all chargers for a partner - optimized with pagination and field selection
+    async getPartnerChargers(partnerId, limit = 100, offset = 0) {
+        return prisma_1.default.charger.findMany({
+            where: { partnerId: partnerId },
+            select: {
+                id: true,
+                status: true,
+                meterValue: true,
+                lastUpdate: true,
+                partnerId: true,
                 partner: {
-                    connect: { id: partnerId }
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                }
+            },
+            skip: offset,
+            take: limit,
+            orderBy: {
+                lastUpdate: 'desc' // Order by most recently updated
+            }
+        });
+    }
+    // New method: Bulk status check for chargers (reduces multiple individual requests)
+    async getMultipleChargerStatus(chargerIds) {
+        if (!chargerIds.length)
+            return [];
+        return prisma_1.default.charger.findMany({
+            where: {
+                id: {
+                    in: chargerIds
                 }
             },
             select: {
@@ -96,64 +140,9 @@ class ChargerService {
                 status: true,
                 meterValue: true,
                 lastUpdate: true,
-                createdAt: true,
-                updatedAt: true,
-                partnerId: true,
-                partner: {
-                    select: {
-                        id: true,
-                        name: true,
-                        apiKey: true,
-                        createdAt: true,
-                        updatedAt: true
-                    }
-                }
+                partnerId: true
             }
         });
-    }
-    // Get all chargers for a partner with pagination
-    async getPartnerChargers(partnerId, options = {}) {
-        const page = options.page || 1;
-        const limit = options.limit || 100;
-        const skip = (page - 1) * limit;
-        const [chargers, total] = await Promise.all([
-            prisma_1.default.charger.findMany({
-                where: { partnerId: partnerId },
-                select: {
-                    id: true,
-                    status: true,
-                    meterValue: true,
-                    lastUpdate: true,
-                    createdAt: true,
-                    updatedAt: true,
-                    partnerId: true,
-                    partner: {
-                        select: {
-                            id: true,
-                            name: true,
-                            apiKey: true,
-                            createdAt: true,
-                            updatedAt: true
-                        }
-                    }
-                },
-                skip,
-                take: limit,
-                orderBy: { id: 'asc' }
-            }),
-            prisma_1.default.charger.count({
-                where: { partnerId: partnerId }
-            })
-        ]);
-        return {
-            chargers,
-            pagination: {
-                total,
-                page,
-                limit,
-                totalPages: Math.ceil(total / limit)
-            }
-        };
     }
 }
 exports.ChargerService = ChargerService;

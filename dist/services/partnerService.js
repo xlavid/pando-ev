@@ -20,15 +20,7 @@ class PartnerService {
     // Get partner by ID
     async getPartner(id) {
         const partner = await prisma_1.default.partner.findUnique({
-            where: { id },
-            // Only select the fields we need
-            select: {
-                id: true,
-                name: true,
-                apiKey: true,
-                createdAt: true,
-                updatedAt: true
-            }
+            where: { id }
         });
         if (!partner) {
             throw new Error('Partner not found');
@@ -38,12 +30,7 @@ class PartnerService {
     // Get partner by API key
     async getPartnerByApiKey(apiKey) {
         const partner = await prisma_1.default.partner.findUnique({
-            where: { apiKey },
-            // Only select the fields we need for authentication
-            select: {
-                id: true,
-                name: true
-            }
+            where: { apiKey }
         });
         if (!partner) {
             throw new Error('Invalid API key');
@@ -52,16 +39,7 @@ class PartnerService {
     }
     // List all partners
     async listPartners() {
-        return prisma_1.default.partner.findMany({
-            // Only select the fields we need for listing
-            select: {
-                id: true,
-                name: true,
-                apiKey: true,
-                createdAt: true,
-                updatedAt: true
-            }
-        });
+        return prisma_1.default.partner.findMany();
     }
 }
 exports.PartnerService = PartnerService;

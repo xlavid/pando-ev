@@ -1,194 +1,57 @@
 # EV Charger System API
 
-A REST API for managing EV chargers, built with Express, TypeScript, Prisma, and PostgreSQL.
+A high-performance REST API for managing EV chargers, built with Express, TypeScript, Prisma, and PostgreSQL, designed to handle high-volume concurrent requests from multiple partner integrations.
 
-## Features
+## System Overview
 
-- Partner registration and API key management
-- Charger registration and management
-- Real-time charger status monitoring
-- Secure API authentication via API keys
-- API rate limiting
-- Input validation
-- Comprehensive error handling and logging
-- Full Docker containerization for both API and database
+This system provides a robust API for third-party partners to integrate with ABC's EV charging solution, allowing partners to:
 
-## System Architecture
+1. Remotely switch on/off chargers (via status updates)
+2. Access real-time status of chargers
+3. Manage large-scale charger networks efficiently
 
-The API is designed to handle:
+The system is designed to handle 10 partners with 100K chargers each (1M total), with status updates every second per charger.
+
+## Architecture Highlights
+
+![System Architecture](https://via.placeholder.com/800x600?text=EV+Charger+System+Architecture) 
+
+- **REST API**: Express.js with TypeScript
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: API key-based authentication
+- **Caching**: In-memory cache for charger status with configurable TTL
+- **Containerization**: Full Docker support for consistent deployment
+- **Monitoring**: Prometheus metrics and health check endpoints
+
+## Scalability Features
+
+The system is designed to handle:
 - 10 partners with 100K chargers each (1M total chargers)
 - Status updates every second per charger
+- High volume concurrent requests
 
-## Prerequisites
+Key optimizations include:
+- Database connection pooling with retry logic
+- Response caching with 5-second TTL
+- Query pattern optimization to reduce database load
+- Timeout handling with graceful degradation
+- Optimized PostgreSQL configuration
+- Database indexing for fast lookups
 
-- Node.js (v14 or higher) - for local development only
-- Docker and Docker Compose
-- npm or yarn package manager - for local development only
+## API Endpoints
 
-## Docker Quick Start
+### Partner Management
+- `POST /api/v1/partners` - Create a new partner
+- `GET /api/v1/partners` - List all partners
+- `GET /api/v1/partners/:partnerId` - Get partner details
 
-The fastest way to get up and running with Docker:
+### Charger Management
+- `POST /api/v1/chargers` - Initialize a new charger
+- `GET /api/v1/chargers/:chargerId` - Get charger status
+- `PUT /api/v1/chargers/:chargerId/status` - Update charger status
+- `GET /api/v1/partners/:partnerId/chargers` - Get all chargers for a partner
 
-```bash
-npm run docker:quickstart
-```
-
-This script will:
-1. Build all Docker images
-2. Start all services (API and PostgreSQL)
-3. Run tests to verify everything is working
-
-All services run in Docker containers, with no need for local Node.js or PostgreSQL installations.
-
-## Local Development Quick Start
-
-For local development without Docker (requires Node.js and npm):
-
-```bash
-npm run quickstart
-```
-
-This script will:
-1. Install dependencies
-2. Start PostgreSQL in Docker
-3. Set up the database
-4. Start the API server locally
-5. Run tests to verify everything is working
-
-When finished, press Ctrl+C to stop the server.
-
-## Docker Setup
-
-The application is fully containerized using Docker Compose:
-
-### Start all services
-
-```bash
-npm run docker:start
-```
-
-### Build the Docker images
-
-```bash
-npm run docker:build
-```
-
-### Stop all services
-
-```bash
-npm run docker:stop
-```
-
-### View logs
-
-```bash
-# View all logs
-npm run docker:logs:all
-
-# View API logs only
-npm run docker:logs:api
-
-# View PostgreSQL logs only
-npm run docker:logs
-```
-
-## Manual Setup
-
-If you prefer to set up the components individually:
-
-### 1. Clone the repository
-
-```bash
-git clone <repository-url>
-cd ev-charger-system
-```
-
-### 2. Install dependencies
-
-```bash
-npm install
-```
-
-### 3. Set up PostgreSQL with Docker
-
-The project includes a Docker Compose file to run PostgreSQL 17:
-
-```bash
-# Start PostgreSQL
-npm run docker:up
-
-# Check logs if needed
-npm run docker:logs
-```
-
-Alternatively, you can use the database setup script:
-
-```bash
-npm run db:setup
-```
-
-This script will:
-1. Start PostgreSQL in Docker
-2. Create the database
-3. Generate the Prisma client
-4. Run initial migrations
-
-### 4. Manual Database Setup (if not using the setup script)
-
-If you didn't use the setup script, you need to:
-
-```bash
-# Generate Prisma client
-npm run prisma:generate
-
-# Run migrations to create the database schema
-npm run prisma:migrate
-```
-
-### 5. Start the server
-
-```bash
-npm run dev
-```
-
-The API will be available at http://localhost:3000.
-
-### 6. Test the API
-
-The project includes a test script that exercises all the main API endpoints:
-
-```bash
-npm run api:test
-```
-
-This script will:
-1. Create a test partner
-2. Initialize a charger
-3. Get the charger status
-4. Update the charger status
-5. Verify the updated status
-6. List all chargers for the partner
-
-### 7. Stopping the database
-
-When you're done, you can stop the PostgreSQL container:
-
-```bash
-npm run docker:down
-```
-
-## Environment Variables
-
-The Docker environment automatically sets these variables, but for local development create a `.env` file in the root directory with:
-
-```
-DATABASE_URL="postgresql://postgres:password@localhost:5432/ev_charger_system?schema=public"
-PORT=3000
-```
-
-## API Documentation
-
-### Authentication
+## Authentication and Authorization
 
 All API requests (except partner creation) require an API key to be included in the `X-API-Key` header:
 
@@ -196,77 +59,85 @@ All API requests (except partner creation) require an API key to be included in 
 X-API-Key: your-api-key
 ```
 
-### Partner Endpoints
+Authorization ensures that:
+- Each partner can only access and modify their own chargers
+- Appropriate error responses (403) are returned for unauthorized access attempts
+- All API keys are validated on each request
 
-#### Create Partner
+## Error Handling and Logging
 
-```
-POST /api/v1/partners
-```
+The system includes comprehensive error handling:
+- Structured error responses with appropriate HTTP status codes
+- Detailed logging with request IDs for traceability
+- Timeout handling with 503 responses and retry suggestions
+- JSON validation errors with specific feedback
 
-Request body:
-```json
-{
-  "name": "Partner Company Name"
-}
-```
+## Performance Considerations
 
-Response:
-```json
-{
-  "id": "uuid",
-  "name": "Partner Company Name",
-  "apiKey": "generated-api-key",
-  "createdAt": "2023-01-01T00:00:00.000Z",
-  "updatedAt": "2023-01-01T00:00:00.000Z"
-}
-```
+- **Database Connection Pooling**: Optimized Prisma client with connection pooling (up to 50 connections) and retry logic
+- **Caching**: In-memory cache for charger status with 5-second TTL
+- **Query Optimization**: Selective field retrieval and optimized queries
+- **Timeout Handling**: All database operations have configurable timeouts with graceful fallbacks
+- **PostgreSQL Tuning**: Optimized settings for high-throughput scenarios
 
-#### List Partners
+## Security Features
 
-```
-GET /api/v1/partners
-```
+- **API Key Authentication**: All endpoints require valid API keys
+- **Authorization**: Partners can only access their own chargers
+- **Input Validation**: Comprehensive validation using Zod schema
+- **Security Headers**: Helmet middleware for HTTP security headers
+- **Error Handling**: Structured error responses without exposing internals
 
-#### Get Partner
+## Getting Started
 
-```
-GET /api/v1/partners/:partnerId
-```
+### Prerequisites
+- Docker and Docker Compose
+- Node.js 14+ (for local development only)
 
-### Charger Endpoints
+### Quick Start
 
-#### Initialize Charger
+```bash
+# Clone the repository
+git clone <repository-url>
+cd ev-charger-system
 
-```
-POST /api/v1/chargers
-```
-
-Request body:
-```json
-{
-  "chargerId": "charger-001"
-}
+# Start with Docker Compose
+docker-compose up -d
 ```
 
-#### Get Charger Status
+### Run Load Tests
 
-```
-GET /api/v1/chargers/:chargerId
-```
-
-#### Update Charger Status
-
-```
-PUT /api/v1/chargers/:chargerId/status
+```bash
+# Run the load tests
+./scripts/run-load-tests.sh
 ```
 
-Request body:
-```json
-{
-  "status": "CHARGING",
-  "meterValue": 10.5
-}
+## API Examples
+
+### Create Partner
+
+```bash
+curl -X POST http://localhost:3000/api/v1/partners \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Partner Company Name"}'
+```
+
+### Initialize Charger
+
+```bash
+curl -X POST http://localhost:3000/api/v1/chargers \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{"chargerId": "charger-001"}'
+```
+
+### Update Charger Status
+
+```bash
+curl -X PUT http://localhost:3000/api/v1/chargers/charger-001/status \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{"status": "CHARGING", "meterValue": 10.5}'
 ```
 
 Possible status values:
@@ -278,44 +149,36 @@ Possible status values:
 - RESERVED
 - UNKNOWN
 
-#### Get Partner Chargers
+### Get Charger Status
 
+```bash
+curl -X GET http://localhost:3000/api/v1/chargers/charger-001 \
+  -H "X-API-Key: your-api-key"
 ```
-GET /api/v1/partners/:partnerId/chargers
-```
 
-## Scalability and Performance Considerations
+## AWS Architecture Considerations
 
-- Database connection pooling via Prisma
-- Rate limiting to prevent abuse
-- Optimized Prisma queries
-- Horizontal scalability with Docker Compose
-- Multi-stage Docker builds for smaller images
-- Docker containerization for consistent deployments
+For production deployment on AWS, the following architecture would be recommended:
 
-## Error Handling
+1. **API Gateway**: Front all API requests with API Gateway for rate limiting, caching, and authorization
+2. **Elastic Load Balancer**: Distribute traffic across multiple API instances
+3. **ECS/EKS**: Run containerized API services with auto-scaling capabilities
+4. **RDS PostgreSQL**: Managed database service with read replicas for scaling reads
+5. **ElastiCache Redis**: Distributed caching for charger status
+6. **CloudWatch**: Monitoring and alerting
+7. **X-Ray**: Distributed tracing for performance analysis
+8. **S3**: Store logs and analytics data
+9. **Lambda**: Serverless functions for auxiliary processing
 
-The API returns appropriate HTTP status codes and error messages:
+## Future Improvements
 
-- 200: OK
-- 201: Created
-- 400: Bad Request
-- 401: Unauthorized
-- 403: Forbidden
-- 404: Not Found
-- 500: Internal Server Error
+- Distributed caching with Redis
+- Enhanced metrics collection
+- Horizontal scaling with load balancing
+- Content Delivery Network (CDN) integration
+- GraphQL API for more flexible queries
+- WebSocket support for real-time updates
 
-## Security Measures
+## License
 
-- API Key Authentication
-- HTTPS required (in production)
-- Security headers via Helmet
-- Input validation via Zod
-- Rate limiting
-- Minimal Docker images to reduce attack surface
-
-## Documentation and Resources
-
-- API Explorer: Available at Prisma Studio (`npm run prisma:studio`)
-- Logging: Check container logs with Docker commands
-- Database: PostgreSQL 17 running in Docker 
+This project is licensed under the MIT License - see the LICENSE file for details. 

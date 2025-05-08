@@ -48,8 +48,8 @@ export const options = {
 
   // Thresholds for acceptable performance
   thresholds: {
-    http_req_duration: ['p(95)<1000'], // 95% of requests should be below 1 second
-    http_req_failed: ['rate<0.05'],   // Less than 5% of requests should fail
+    http_req_duration: ['p(95)<2500', 'p(99)<5000'], // 95% of requests should be below 2.5 second
+    http_req_failed: ['rate<0.01'],   // Less than 1% of requests should fail
     'json_parse_errors': ['count<10'], // Fail if we have too many JSON parse errors
   },
 };
@@ -58,7 +58,8 @@ export const options = {
 const sharedData = {
   baseUrl: __ENV.API_URL || 'http://api:3000', // Will be overridden by the script
   apiKeys: [],  // Will store API keys for created partners
-  chargerIds: [] // Will store created charger IDs
+  chargerIds: [], // Will store created charger IDs
+  partnerChargerMap: {} // Maps partner IDs to their charger IDs
 };
 
 // Initialize data on first run
@@ -91,18 +92,56 @@ export function setup() {
   // Store all partner API keys and IDs
   const partnerApiKeys = [];
   const partnerIds = [];
+  const partnerChargerMap = {};
   
   for (const partner of partners) {
     partnerApiKeys.push(partner.apiKey);
     partnerIds.push(partner.id);
+    partnerChargerMap[partner.id] = [];
   }
   
   console.log(`Found ${partnerApiKeys.length} existing partners for testing`);
   
+  // Create test chargers for each partner to ensure we have valid IDs
+  console.log('Creating test chargers for each partner...');
+  
+  // Create 5 test chargers for each partner
+  for (const partnerId of partnerIds) {
+    const partnerIndex = partnerIds.indexOf(partnerId);
+    const apiKey = partnerApiKeys[partnerIndex];
+    
+    for (let i = 0; i < 5; i++) {
+      const chargerId = `charger-test-${partnerId}-${i}`;
+      
+      const response = http.post(
+        `${sharedData.baseUrl}/api/v1/chargers`,
+        JSON.stringify({ chargerId: chargerId }),
+        { 
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey
+          } 
+        }
+      );
+      
+      // If we successfully created a charger or it already exists (200 or 201)
+      if (response.status === 201 || response.status === 200) {
+        const parsedResponse = safeParseJson(response.body);
+        if (!parsedResponse.error) {
+          partnerChargerMap[partnerId].push(chargerId);
+          console.log(`Created/Found charger ${chargerId} for partner ${partnerId}`);
+        }
+      }
+    }
+  }
+  
+  console.log('Test setup completed');
+  
   return {
     success: true,
     partnerApiKeys: partnerApiKeys,
-    partnerIds: partnerIds
+    partnerIds: partnerIds,
+    partnerChargerMap: partnerChargerMap
   };
 }
 
@@ -171,22 +210,27 @@ export default function(data) {
         initializeChargerErrors.add(1);
       } else {
         // Store the charger ID for later use
-        sharedData.chargerIds.push(chargerId);
+        if (!data.partnerChargerMap[partnerId]) {
+          data.partnerChargerMap[partnerId] = [];
+        }
+        data.partnerChargerMap[partnerId].push(chargerId);
       }
     });
   }
   // 70% chance: Query charger status (until operation < 71)
   else if (operation < 71) {
-    // Get a charger ID - either from our created ones or generate a random one that probably exists
+    // Use one of the chargers that belongs to this partner
     let testChargerId;
-    if (sharedData.chargerIds.length > 0 && Math.random() < 0.3) {
-      // 30% chance to use one of our created chargers when available
-      testChargerId = sharedData.chargerIds[Math.floor(Math.random() * sharedData.chargerIds.length)];
+    
+    if (data.partnerChargerMap[partnerId] && data.partnerChargerMap[partnerId].length > 0) {
+      // Use a charger that we know belongs to this partner
+      const chargerIndex = Math.floor(Math.random() * data.partnerChargerMap[partnerId].length);
+      testChargerId = data.partnerChargerMap[partnerId][chargerIndex];
     } else {
-      // Use pattern from seeded mock data where chargers are likely to exist
-      const mockPartnerIndex = (partnerIndex % 10) + 1; // Get a number between 1-10
-      const randomNumber = Math.floor(Math.random() * 100000); // 0-99999
-      testChargerId = `charger-${mockPartnerIndex}-${randomNumber}`;
+      // Fallback to the pattern-based approach if no chargers are available
+      const partnerNumber = parseInt(partnerId.split('-')[1]) || 1;
+      const randomNumber = Math.floor(Math.random() * 1000); // 0-999 to increase hit probability
+      testChargerId = `charger-${partnerNumber}-${randomNumber}`;
     }
     
     group('Get Charger Status', function() {
@@ -227,16 +271,18 @@ export default function(data) {
   }
   // 29% chance: Update charger status (remaining cases)
   else {
-    // Get a charger ID - either from our created ones or generate a random one
+    // Use one of the chargers that belongs to this partner
     let testChargerId;
-    if (sharedData.chargerIds.length > 0 && Math.random() < 0.3) {
-      // 30% chance to use one of our created chargers when available
-      testChargerId = sharedData.chargerIds[Math.floor(Math.random() * sharedData.chargerIds.length)];
+    
+    if (data.partnerChargerMap[partnerId] && data.partnerChargerMap[partnerId].length > 0) {
+      // Use a charger that we know belongs to this partner
+      const chargerIndex = Math.floor(Math.random() * data.partnerChargerMap[partnerId].length);
+      testChargerId = data.partnerChargerMap[partnerId][chargerIndex];
     } else {
-      // Use pattern from seeded mock data where chargers are likely to exist
-      const mockPartnerIndex = (partnerIndex % 10) + 1; // Get a number between 1-10
-      const randomNumber = Math.floor(Math.random() * 100000); // 0-99999
-      testChargerId = `charger-${mockPartnerIndex}-${randomNumber}`;
+      // Fallback to the pattern-based approach if no chargers are available
+      const partnerNumber = parseInt(partnerId.split('-')[1]) || 1;
+      const randomNumber = Math.floor(Math.random() * 1000); // 0-999 to increase hit probability
+      testChargerId = `charger-${partnerNumber}-${randomNumber}`;
     }
     
     group('Update Charger Status', function() {

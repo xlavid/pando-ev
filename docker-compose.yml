@@ -8,15 +8,25 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ev_charger_system?schema=public
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ev_charger_system?schema=public&connection_limit=50&pool_timeout=30
       - DEBUG=prisma:*,express:*
       - LOG_LEVEL=debug
+      - DATABASE_CONNECTION_LIMIT=50
+      - DATABASE_CONNECTION_TIMEOUT=30
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - ev-charger-network
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: '4G'
+        reservations:
+          cpus: '2'
+          memory: '2G'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 10s
@@ -33,11 +43,33 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: ev_charger_system
+      # Performance optimizations
+      POSTGRES_MAX_CONNECTIONS: 200
+      POSTGRES_SHARED_BUFFERS: 512MB
+      POSTGRES_WORK_MEM: 32MB
+      POSTGRES_MAINTENANCE_WORK_MEM: 256MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 2GB
+      POSTGRES_RANDOM_PAGE_COST: 1.1
+      POSTGRES_MAX_WORKER_PROCESSES: 8
+      POSTGRES_MAX_PARALLEL_WORKERS: 8
+      POSTGRES_MAX_PARALLEL_WORKERS_PER_GATHER: 4
+      # Connection settings
+      POSTGRES_TCP_KEEPALIVES_IDLE: 60
+      POSTGRES_TCP_KEEPALIVES_INTERVAL: 10
+      POSTGRES_TCP_KEEPALIVES_COUNT: 10
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
       - ev-charger-network
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: '4G'
+        reservations:
+          cpus: '2'
+          memory: '2G'
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -48,6 +80,13 @@ services:
 networks:
   ev-charger-network:
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.18.0.0/16
+    driver_opts:
+      com.docker.network.bridge.name: br-evcharger
+      com.docker.network.driver.mtu: 1500
 
 volumes:
   postgres_data: 
