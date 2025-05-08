@@ -4,7 +4,7 @@ This document outlines the request and response formats for all endpoints in the
 
 ## Authentication
 
-Most endpoints (except partner creation) require authentication using an API key provided in the `X-API-Key` header:
+All endpoints (except partner creation) require authentication using an API key provided in the `X-API-Key` header:
 
 ```
 X-API-Key: your-api-key
@@ -47,7 +47,7 @@ Returns a list of all partners.
 
 - **URL**: `/api/v1/partners`
 - **Method**: `GET` 
-- **Authentication**: None
+- **Authentication**: Required (X-API-Key)
 - **Response**: `200 OK`
   ```json
   [
@@ -61,6 +61,7 @@ Returns a list of all partners.
   ]
   ```
 - **Errors**:
+  - `401 Unauthorized`: Missing or invalid API key
   - `500 Internal Server Error`: Server-side error
 
 #### 3. Get Partner
@@ -69,7 +70,7 @@ Returns a specific partner by ID.
 
 - **URL**: `/api/v1/partners/:partnerId`
 - **Method**: `GET`
-- **Authentication**: None
+- **Authentication**: Required (X-API-Key)
 - **Response**: `200 OK`
   ```json
   {
@@ -81,6 +82,7 @@ Returns a specific partner by ID.
   }
   ```
 - **Errors**:
+  - `401 Unauthorized`: Missing or invalid API key
   - `404 Not Found`: Partner with specified ID not found
   - `500 Internal Server Error`: Server-side error
 
