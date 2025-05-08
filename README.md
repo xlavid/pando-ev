@@ -15,61 +15,6 @@ This project implements a comprehensive REST API for ABC's EV charging solution 
 
 The system achieves these goals through a modern, containerized application architecture with optimized database access patterns and robust error handling.
 
-## QuickStart with Docker
-
-The easiest way to get the EV Charger System up and running is using the provided quickstart script:
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd ev-charger-system
-
-# Create a .env file with your credentials
-touch .env
-echo "POSTGRES_USER=postgres" >> .env
-echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" >> .env
-echo "ADMIN_API_KEY=$(openssl rand -hex 16)" >> .env
-
-# Run the quickstart script
-chmod +x ./scripts/docker-quickstart.sh
-./scripts/docker-quickstart.sh
-```
-
-The quickstart script will:
-1. Check if Docker is running
-2. Clean up any existing containers and volumes
-3. Load environment variables from your .env file
-4. Build Docker images
-5. Start PostgreSQL and wait for it to be healthy
-6. Start the API service and wait for it to be available
-7. Run basic API tests to verify functionality
-8. Display useful Docker commands for monitoring and management
-
-Once running, the API will be available at:
-- API: http://localhost:3000
-- Database: localhost:5432
-
-### Prerequisites
-- Docker and Docker Compose
-- Node.js 14+ (for local development only)
-
-### Load Testing (Optional)
-
-To test the performance of the API under high load:
-
-```bash
-# Optional: Generate mock data (10 partners with 1M chargers) for realistic load testing
-# Note: Ensure your PostgreSQL credentials are properly set in your .env file
-chmod +x ./scripts/docker-generate-mock-data.sh
-./scripts/docker-generate-mock-data.sh
-
-# Run the load tests
-chmod +x ./scripts/run-load-tests.sh
-./scripts/run-load-tests.sh
-```
-
-The load test will simulate high traffic with up to 1000 concurrent users and provide detailed metrics on system performance. The optional mock data generation creates a realistic dataset of 10 partners with 100,000 chargers each (1 million total).
-
 ## System Overview
 
 This system provides a robust API for third-party partners to integrate with ABC's EV charging solution, allowing partners to:
@@ -82,7 +27,7 @@ The system is designed to handle 10 partners with 100K chargers each (1M total),
 
 ## Architecture Highlights
 
-![AWS Architecture](./AWS_Arch.png)
+![System Architecture](https://via.placeholder.com/800x600?text=EV+Charger+System+Architecture) 
 
 - **REST API**: Express.js with TypeScript
 - **Database**: PostgreSQL with Prisma ORM
@@ -178,7 +123,42 @@ The system includes comprehensive error handling:
 - **Security Headers**: Helmet middleware for HTTP security headers
 - **Error Handling**: Structured error responses without exposing internals
 
-## Advanced Setup Options
+## Getting Started
+
+### Prerequisites
+- Docker and Docker Compose
+- Node.js 14+ (for local development only)
+
+### QuickStart with Docker
+
+The easiest way to get the EV Charger System up and running is using the provided quickstart script:
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd ev-charger-system
+
+# Create a .env file with your admin API key
+echo "ADMIN_API_KEY=$(openssl rand -hex 16)" > .env
+
+# Run the quickstart script
+chmod +x ./scripts/docker-quickstart.sh
+./scripts/docker-quickstart.sh
+```
+
+The quickstart script will:
+1. Check if Docker is running
+2. Clean up any existing containers and volumes
+3. Load environment variables from your .env file
+4. Build Docker images
+5. Start PostgreSQL and wait for it to be healthy
+6. Start the API service and wait for it to be available
+7. Run basic API tests to verify functionality
+8. Display useful Docker commands for monitoring and management
+
+Once running, the API will be available at:
+- API: http://localhost:3000
+- Database: localhost:5432
 
 ### Manual Docker Setup
 
@@ -186,10 +166,7 @@ If you prefer to set up the system manually:
 
 ```bash
 # Create .env file with required variables
-touch .env
-echo "POSTGRES_USER=postgres" >> .env
-echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" >> .env
-echo "ADMIN_API_KEY=$(openssl rand -hex 16)" >> .env
+echo "ADMIN_API_KEY=$(openssl rand -hex 16)" > .env
 
 # Build and start the services
 docker-compose build
@@ -200,14 +177,21 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
+### Run Load Tests
+
+To test the performance of the API under high load:
+
+```bash
+# Run the load tests
+chmod +x ./scripts/run-load-tests.sh
+./scripts/run-load-tests.sh
+```
+
+The load test will simulate high traffic with up to 1000 concurrent users and provide detailed metrics on system performance.
+
 ## Environment Setup
 
-The EV Charger System requires certain environment variables to be configured properly:
-
-1. **PostgreSQL Credentials**: Used for database connections (`POSTGRES_USER` and `POSTGRES_PASSWORD`)
-2. **Admin API Key**: Required for partner management operations (`ADMIN_API_KEY`)
-
-Both sets of credentials are essential for the system to function properly.
+The EV Charger System requires certain environment variables to be configured properly. The most important one is the `ADMIN_API_KEY` which is needed for partner management operations.
 
 ### Setting Up Environment Variables
 
@@ -220,11 +204,7 @@ Both sets of credentials are essential for the system to function properly.
 2. **Add required variables to the .env file**:
    ```
    # Database connection string (for local development)
-   DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/ev_charger_system?schema=public"
-   
-   # PostgreSQL credentials
-   POSTGRES_USER="postgres"
-   POSTGRES_PASSWORD="your_secure_password"
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ev_charger_system?schema=public"
    
    # Admin API key - use a strong random value for production environments
    ADMIN_API_KEY="your_secure_generated_key"
@@ -248,8 +228,6 @@ Both sets of credentials are essential for the system to function properly.
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | Yes | - |
-| `POSTGRES_USER` | PostgreSQL username | Yes | postgres |
-| `POSTGRES_PASSWORD` | PostgreSQL password | Yes | - |
 | `ADMIN_API_KEY` | Secret key for admin API endpoints | Yes | - |
 | `NODE_ENV` | Environment (development/production) | No | development |
 | `LOG_LEVEL` | Logging verbosity | No | info |
