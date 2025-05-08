@@ -21,8 +21,8 @@ The easiest way to get the EV Charger System up and running is using the provide
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd ev-charger-system
+git clone https://github.com/xlavid/pando-ev.git
+cd pando-ev
 
 # Create a .env file with your credentials
 touch .env
