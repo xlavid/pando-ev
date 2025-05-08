@@ -1,9 +1,26 @@
 const { PrismaClient } = require('@prisma/client');
 const { randomUUID } = require('crypto');
 
-// Set DATABASE_URL to match Docker Compose configuration
-process.env.DATABASE_URL = process.env.DATABASE_URL || 
-  'postgresql://postgres:password@postgres:5432/ev_charger_system?schema=public';
+// Log the environment variables at startup
+console.log('Starting mock data generation with:');
+console.log(`POSTGRES_USER: ${process.env.POSTGRES_USER || 'not set'}`);
+console.log(`POSTGRES_PASSWORD: ${process.env.POSTGRES_PASSWORD ? '******' : 'not set'}`);
+
+// Ensure we have the database connection string
+if (!process.env.DATABASE_URL) {
+  console.log('DATABASE_URL not set, constructing from environment variables...');
+  
+  // Check if we have the credentials
+  if (!process.env.POSTGRES_USER || !process.env.POSTGRES_PASSWORD) {
+    console.warn('WARNING: PostgreSQL credentials not properly set in environment variables');
+    console.warn('Using default values (postgres/password)');
+  }
+  
+  // Set the DATABASE_URL with the credentials we have
+  process.env.DATABASE_URL = `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'password'}@postgres:5432/ev_charger_system?schema=public`;
+}
+
+console.log(`Using DATABASE_URL: ${process.env.DATABASE_URL.replace(/:[^:]*@/, ':****@')}`);
 
 // Load ChargerStatus from src/models/charger
 const ChargerStatus = {
@@ -50,8 +67,9 @@ function formatPartnerValues(partner) {
 
 async function main() {
   console.log('Generating mock data...');
-  console.log(`Using DATABASE_URL: ${process.env.DATABASE_URL}`);
+  console.log(`Using DATABASE_URL: ${process.env.DATABASE_URL.replace(/:[^:]*@/, ':****@')}`);
   
+  // Initialize Prisma client
   const prisma = new PrismaClient({
     datasources: {
       db: {

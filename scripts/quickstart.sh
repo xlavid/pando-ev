@@ -15,7 +15,7 @@ echo "Waiting for PostgreSQL to start..."
 sleep 5
 
 # Set DATABASE_URL environment variable
-export DATABASE_URL="postgresql://postgres:password@localhost:5432/ev_charger_system?schema=public"
+export DATABASE_URL="postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@localhost:5432/ev_charger_system?schema=public"
 
 # Generate Prisma client and run migrations
 echo -e "\n[3/4] Setting up database schema..."

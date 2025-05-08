@@ -8,7 +8,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ev_charger_system?schema=public&connection_limit=50&pool_timeout=30
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/ev_charger_system?schema=public&connection_limit=50&pool_timeout=30
       - DEBUG=prisma:*,express:*
       - LOG_LEVEL=debug
       - DATABASE_CONNECTION_LIMIT=50
@@ -41,8 +41,8 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ev_charger_system
       # Performance optimizations
       POSTGRES_MAX_CONNECTIONS: 200
