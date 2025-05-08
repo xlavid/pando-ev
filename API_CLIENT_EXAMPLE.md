@@ -202,10 +202,28 @@ export class EVChargerApiClient {
   
   /**
    * Get partner information
+   * Note: Requires authentication
    */
   public async getPartner(partnerId: string): Promise<ApiResponse<Partner>> {
     try {
       const response: AxiosResponse = await this.client.get(`/api/v1/partners/${partnerId}`);
+      
+      return {
+        data: response.data,
+        statusCode: response.status
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+  
+  /**
+   * Get list of all partners
+   * Note: Requires authentication
+   */
+  public async listPartners(): Promise<ApiResponse<Partner[]>> {
+    try {
+      const response: AxiosResponse = await this.client.get('/api/v1/partners');
       
       return {
         data: response.data,
@@ -293,6 +311,14 @@ async function main() {
     // Get your partner ID (you should store this)
     const partnerId = 'partner-1';
     
+    // Get partner details with authentication
+    const partnerDetails = await client.getPartner(partnerId);
+    console.log('Partner details:', partnerDetails.data);
+    
+    // List all partners with authentication
+    const partners = await client.listPartners();
+    console.log(`Found ${partners.data.length} partners`);
+    
     // Initialize a new charger
     const newCharger = await client.initializeCharger('charger-001');
     console.log('Initialized charger:', newCharger.data);
@@ -379,8 +405,34 @@ async function safeChargerOperation() {
     throw error;
   }
 }
-```
 
+// Example of safe partner operations with auth error handling
+async function safePartnerOperation() {
+  const client = new EVChargerApiClient(
+    'https://api.example.com',
+    'your-api-key-here'
+  );
+  
+  try {
+    // Get list of partners
+    const partners = await client.listPartners();
+    console.log(`Found ${partners.data.length} partners`);
+    return partners;
+  } catch (error) {
+    // Handle auth errors for partner endpoints
+    if (error.message.includes('Authentication failed')) {
+      console.error('Invalid API key for partner list operation');
+      // Handle authentication error, possibly prompt for new API key
+    } else if (error.message.includes('Forbidden')) {
+      console.error('Not authorized to access partner information');
+      // Handle authorization error
+    } else {
+      console.error('Unexpected error:', error.message);
+    }
+    throw error;
+  }
+}
+```
 ## WebSocket Client Example (Future Extension)
 
 ```typescript
