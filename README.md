@@ -15,6 +15,61 @@ This project implements a comprehensive REST API for ABC's EV charging solution 
 
 The system achieves these goals through a modern, containerized application architecture with optimized database access patterns and robust error handling.
 
+## QuickStart with Docker
+
+The easiest way to get the EV Charger System up and running is using the provided quickstart script:
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd ev-charger-system
+
+# Create a .env file with your credentials
+touch .env
+echo "POSTGRES_USER=postgres" >> .env
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" >> .env
+echo "ADMIN_API_KEY=$(openssl rand -hex 16)" >> .env
+
+# Run the quickstart script
+chmod +x ./scripts/docker-quickstart.sh
+./scripts/docker-quickstart.sh
+```
+
+The quickstart script will:
+1. Check if Docker is running
+2. Clean up any existing containers and volumes
+3. Load environment variables from your .env file
+4. Build Docker images
+5. Start PostgreSQL and wait for it to be healthy
+6. Start the API service and wait for it to be available
+7. Run basic API tests to verify functionality
+8. Display useful Docker commands for monitoring and management
+
+Once running, the API will be available at:
+- API: http://localhost:3000
+- Database: localhost:5432
+
+### Prerequisites
+- Docker and Docker Compose
+- Node.js 14+ (for local development only)
+
+### Load Testing (Optional)
+
+To test the performance of the API under high load:
+
+```bash
+# Optional: Generate mock data (10 partners with 1M chargers) for realistic load testing
+# Note: Ensure your PostgreSQL credentials are properly set in your .env file
+chmod +x ./scripts/docker-generate-mock-data.sh
+./scripts/docker-generate-mock-data.sh
+
+# Run the load tests
+chmod +x ./scripts/run-load-tests.sh
+./scripts/run-load-tests.sh
+```
+
+The load test will simulate high traffic with up to 1000 concurrent users and provide detailed metrics on system performance. The optional mock data generation creates a realistic dataset of 10 partners with 100,000 chargers each (1 million total).
+
 ## System Overview
 
 This system provides a robust API for third-party partners to integrate with ABC's EV charging solution, allowing partners to:
@@ -123,45 +178,7 @@ The system includes comprehensive error handling:
 - **Security Headers**: Helmet middleware for HTTP security headers
 - **Error Handling**: Structured error responses without exposing internals
 
-## Getting Started
-
-### Prerequisites
-- Docker and Docker Compose
-- Node.js 14+ (for local development only)
-
-### QuickStart with Docker
-
-The easiest way to get the EV Charger System up and running is using the provided quickstart script:
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd ev-charger-system
-
-# Create a .env file with your credentials
-touch .env
-echo "POSTGRES_USER=postgres" >> .env
-echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" >> .env
-echo "ADMIN_API_KEY=$(openssl rand -hex 16)" >> .env
-
-# Run the quickstart script
-chmod +x ./scripts/docker-quickstart.sh
-./scripts/docker-quickstart.sh
-```
-
-The quickstart script will:
-1. Check if Docker is running
-2. Clean up any existing containers and volumes
-3. Load environment variables from your .env file
-4. Build Docker images
-5. Start PostgreSQL and wait for it to be healthy
-6. Start the API service and wait for it to be available
-7. Run basic API tests to verify functionality
-8. Display useful Docker commands for monitoring and management
-
-Once running, the API will be available at:
-- API: http://localhost:3000
-- Database: localhost:5432
+## Advanced Setup Options
 
 ### Manual Docker Setup
 
@@ -182,29 +199,6 @@ docker-compose up -d
 # You can check the logs with:
 docker-compose logs -f
 ```
-
-### Run Load Tests
-
-To test the performance of the API under high load:
-
-```bash
-# Optional: Generate mock data (10 partners with 1M chargers) for realistic load testing
-# Note: Ensure your PostgreSQL credentials are properly set in your .env file
-# The script will automatically load these credentials
-chmod +x ./scripts/docker-generate-mock-data.sh
-./scripts/docker-generate-mock-data.sh
-
-# If you encounter any issues with the mock data generation, try:
-# docker-compose exec postgres psql -U postgres -c "SELECT COUNT(*) FROM \"Partner\";"
-# to verify the data was created, or check logs with:
-# docker-compose logs api
-
-# Run the load tests
-chmod +x ./scripts/run-load-tests.sh
-./scripts/run-load-tests.sh
-```
-
-The load test will simulate high traffic with up to 1000 concurrent users and provide detailed metrics on system performance. The optional mock data generation step creates a realistic dataset of 10 partners with 100,000 chargers each (1 million total), which provides a more accurate assessment of how the system performs with production-scale data.
 
 ## Environment Setup
 
