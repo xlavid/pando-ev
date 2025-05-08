@@ -1,4 +1,0 @@
-CONTAINER ID   NAME                  CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O        PIDS
-10831a60922c   cranky_cannon         105.36%   366.7MiB / 11.68GiB   3.07%     48.3MB / 9.55MB   0B / 0B          17
-9801985604ba   ev-charger-api        204.05%   148.7MiB / 4GiB       3.63%     70.8MB / 137MB    0B / 8.53MB      22
-6c7fe5561804   ev-charger-postgres   217.27%   323.5MiB / 4GiB       7.90%     32.4MB / 50.8MB   1.23MB / 124MB   58
